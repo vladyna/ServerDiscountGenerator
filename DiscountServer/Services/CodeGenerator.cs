@@ -12,11 +12,17 @@ namespace DiscountServer.Services
             var ulidBytes = UlidBytes();
             var encoded = EncodeCrockford32(ulidBytes);
             if (length <= encoded.Length)
-                return encoded.Substring(0, length);
-            var pad = new char[length - encoded.Length];
-            Span<byte> extra = stackalloc byte[pad.Length];
+                return encoded.Substring(encoded.Length - length, length);
+
+            var padLength = length - encoded.Length;
+            if (padLength == 0)
+                return encoded;
+            var extra = new byte[padLength];
             RandomNumberGenerator.Fill(extra);
-            for (int i = 0; i < pad.Length; i++) pad[i] = Crockford32[extra[i] % Crockford32.Length];
+            var pad = new char[padLength];
+            for (int i = 0; i < padLength; i++)
+                pad[i] = Crockford32[extra[i] % Crockford32.Length];
+
             return encoded + new string(pad);
         }
 
@@ -30,9 +36,12 @@ namespace DiscountServer.Services
             bytes[3] = (byte)(time >> 16);
             bytes[4] = (byte)(time >> 8);
             bytes[5] = (byte)(time);
-            Span<byte> rnd = stackalloc byte[10];
+
+            var rnd = new byte[10];
             RandomNumberGenerator.Fill(rnd);
-            for (int i = 0; i < 10; i++) bytes[6 + i] = rnd[i];
+            for (int i = 0; i < 10; i++)
+                bytes[6 + i] = rnd[i];
+
             return bytes;
         }
 
