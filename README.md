@@ -75,20 +75,6 @@ Invalid requests yield:
    - DiscountClient: Start (optional if you want interactive usage)
 3. Run (F5). Server listens on `localhost:5000`.
 
-### Command-line Interaction (netcat / nc)
-You can test manually without the client:
-Windows (use ncat from Nmap or PowerShell's built-in `nc` if available):# Connect
-nc 127.0.0.1 5000
-# Send a generate request (press Enter after line)
-{"Type":"Generate","Count":5,"Length":8}
-# Receive response line
-{"Type":"GenerateResponse","Result":true,"Codes":["ABCDEF12",...]}
-# Use one code
-{"Type":"Use","Code":"ABCDEF12"}
-{"Type":"UseResponse","Result":0}
-### Sample Client JSON Sequence
-1. `{"Type":"Generate","Count":3,"Length":7}`
-2. `{"Type":"Use","Code":"AAAAAAA"}` (replace with returned code)
 
 ## Running Tests
 From solution directory:dotnet testIncluded tests:
