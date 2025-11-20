@@ -66,9 +66,6 @@ Invalid requests yield:
 - Code lengths supported: 7 or 8.
 - Generation loop attempts up to 5000 batches to fulfill a request.
 - Batch size: `min(need * 2, 500)` codes produced in memory, inserted with `INSERT OR IGNORE` to handle collisions.
-- Collisions counted as generated - inserted; logged each attempt.
-- Backoff: if zero progress after every 10 attempts, a short 20ms delay.
-- Success requires full fulfillment (generated.Count == Count). Partial failure returns Result=false with no Codes.
 
 ## Starting the Server & Client (Visual Studio)
 
