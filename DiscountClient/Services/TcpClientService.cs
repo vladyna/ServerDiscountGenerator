@@ -22,13 +22,28 @@ namespace DiscountClient.Services
             _reader = new StreamReader(_stream, Utf8NoBom);
         }
 
-        public async Task SendAsync(string json) => await _writer.WriteLineAsync(json);
-        public async Task<string?> ReceiveAsync() => await _reader.ReadLineAsync();
+        public async Task SendAsync(string json)
+        {
+            await _writer.WriteLineAsync(json);
+        }
+
+        public async Task<string?> ReceiveAsync()
+        {
+            return await _reader.ReadLineAsync();
+        }
 
         public T? Deserialize<T>(string? json) where T : class
         {
-            if (json == null) return null;
-            try { return JsonSerializer.Deserialize<T>(json, Opts); } catch { return null; }
+            if (json == null)
+                return null;
+            try
+            {
+                return JsonSerializer.Deserialize<T>(json, Opts);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async ValueTask DisposeAsync()

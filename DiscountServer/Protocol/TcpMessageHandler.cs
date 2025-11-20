@@ -17,7 +17,10 @@ namespace DiscountServer.Protocol
         #endregion
 
         #region Ctor
-        public TcpMessageHandler(DiscountRepository repo) => _repo = repo;
+        public TcpMessageHandler(DiscountRepository repo)
+        {
+            _repo = repo;
+        }
         #endregion
 
         #region Entry
@@ -25,27 +28,35 @@ namespace DiscountServer.Protocol
         {
             using var stream = client.GetStream();
             using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
             while (true)
             {
                 var line = await ReadLineAsync(stream);
                 if (line == null)
+                {
                     break;
+                }
 
                 var type = GetTypeName(line);
-
                 if (type == null)
+                {
                     continue;
+                }
 
                 Console.WriteLine($"[TCP] Received {type} request");
 
                 if (type == "Generate")
+                {
                     await ProcessGenerate(line, writer);
-
+                }
                 else if (type == "Use")
+                {
                     await ProcessUse(line, writer);
-
+                }
                 else if (type == "List")
+                {
                     await ProcessList(line, writer);
+                }
             }
         }
         #endregion
@@ -56,25 +67,37 @@ namespace DiscountServer.Protocol
             var start = DateTime.UtcNow;
             var buffer = new byte[1];
             var ms = new MemoryStream();
+
             while (true)
             {
                 if (DateTime.UtcNow - start > ReadTimeout)
+                {
                     return null;
+                }
 
                 var read = await stream.ReadAsync(buffer, 0, 1);
                 if (read == 0)
+                {
                     return null;
+                }
 
                 var b = buffer[0];
                 if (b == (byte)'\n')
+                {
                     break;
+                }
 
                 if (ms.Length >= MaxMessageBytes)
+                {
                     return null;
+                }
 
                 if (b != (byte)'\r')
+                {
                     ms.WriteByte(b);
+                }
             }
+
             return Encoding.UTF8.GetString(ms.ToArray());
         }
         #endregion
@@ -87,7 +110,10 @@ namespace DiscountServer.Protocol
                 var bm = JsonSerializer.Deserialize<BaseMessage>(json, _json);
                 return string.IsNullOrWhiteSpace(bm?.Type) ? null : bm.Type;
             }
-            catch { return null; }
+            catch
+            {
+                return null;
+            }
         }
 
         private T? Deserialize<T>(string json) where T : class
@@ -110,34 +136,76 @@ namespace DiscountServer.Protocol
             if (!ValidateGenerate(req))
             {
                 Console.WriteLine("[Generate] Invalid request");
-                await writer.WriteLineAsync(JsonSerializer.Serialize(new GenerateResponse { Type = "GenerateResponse", Result = false, Codes = new List<string>() }));
+                await writer.WriteLineAsync(JsonSerializer.Serialize(new GenerateResponse
+                {
+                    Type = "GenerateResponse",
+                    Result = false,
+                    Codes = new List<string>()
+                }));
                 return;
             }
+
             var codes = await GenerateCodes(req.Count, req.Length);
             var success = codes.Count == req.Count;
             Console.WriteLine($"[Generate] Produced {codes.Count}/{req.Count} codes");
-            var resp = new GenerateResponse { Type = "GenerateResponse", Result = success, Codes = codes };
+
+            var resp = new GenerateResponse
+            {
+                Type = "GenerateResponse",
+                Result = success,
+                Codes = codes
+            };
             await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
         }
 
-        private bool ValidateGenerate(GenerateRequest? req) => req != null && req.Count >= 1 && req.Count <= 2000 && req.Count <= ushort.MaxValue && req.Length >= 7 && req.Length <= 8;
+        private bool ValidateGenerate(GenerateRequest? req)
+        {
+            if (req == null)
+            {
+                return false;
+            }
+            if (req.Count < 1)
+            {
+                return false;
+            }
+            if (req.Count > 2000)
+            {
+                return false;
+            }
+            if (req.Length < 7)
+            {
+                return false;
+            }
+            if (req.Length > 8)
+            {
+                return false;
+            }
+            return true;
+        }
 
         private async Task<List<string>> GenerateCodes(int count, int length)
         {
             var generated = new List<string>();
             int attempts = 0;
             int collisionsTotal = 0;
+
             while (generated.Count < count && attempts < MaxGenerateAttempts)
             {
                 attempts++;
                 var batch = BuildBatch(count - generated.Count, length);
                 var inserted = (await _repo.InsertCodesAsync(batch, length)).ToList();
-                generated.AddRange(inserted);
+                if (inserted.Count > 0)
+                {
+                    generated.AddRange(inserted);
+                }
 
                 collisionsTotal += batch.Count - inserted.Count;
                 if (attempts % 10 == 0 && generated.Count == 0)
+                {
                     await Task.Delay(20);
+                }
             }
+
             return generated;
         }
 
@@ -147,7 +215,9 @@ namespace DiscountServer.Protocol
             var set = new HashSet<string>();
 
             for (int i = 0; i < size; i++)
+            {
                 set.Add(CodeGenerator.RandomCode(length));
+            }
             return set;
         }
         #endregion
@@ -157,16 +227,26 @@ namespace DiscountServer.Protocol
         {
             var req = Deserialize<ListRequest>(json);
             int limit = 100;
+
             if (req?.Limit != null && req.Limit.Value > 0)
             {
                 var requested = (int)req.Limit.Value;
                 limit = requested > 1000 ? 1000 : requested;
             }
+
             int? lenFilter = req?.Length.HasValue == true ? (int)req.Length.Value : null;
             if (lenFilter.HasValue && (lenFilter < 7 || lenFilter > 8))
+            {
                 lenFilter = null;
+            }
+
             var codes = await _repo.ListCodesAsync(lenFilter, limit);
-            var resp = new ListResponse { Type = "ListResponse", Result = true, Codes = codes.ToList() };
+            var resp = new ListResponse
+            {
+                Type = "ListResponse",
+                Result = true,
+                Codes = codes.ToList()
+            };
             await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
         }
         #endregion
@@ -178,16 +258,51 @@ namespace DiscountServer.Protocol
             if (!ValidateUse(req))
             {
                 Console.WriteLine("[Use] Invalid request");
-                await writer.WriteLineAsync(JsonSerializer.Serialize(new UseResponse { Type = "UseResponse", Result = 3 }));
+                await writer.WriteLineAsync(JsonSerializer.Serialize(new UseResponse
+                {
+                    Type = "UseResponse",
+                    Result = 3
+                }));
                 return;
             }
+
             var codeResult = await _repo.UseCodeAsync(req!.Code);
-            var result = codeResult switch { 0 => (byte)0, 1 => (byte)1, 2 => (byte)2, _ => (byte)3 };
+            var result = codeResult switch
+            {
+                0 => (byte)0,
+                1 => (byte)1,
+                2 => (byte)2,
+                _ => (byte)3
+            };
             Console.WriteLine($"[Use] Code {req.Code} result {result}");
-            await writer.WriteLineAsync(JsonSerializer.Serialize(new UseResponse { Type = "UseResponse", Result = result }));
+
+            await writer.WriteLineAsync(JsonSerializer.Serialize(new UseResponse
+            {
+                Type = "UseResponse",
+                Result = result
+            }));
         }
 
-        private bool ValidateUse(UseRequest? req) => req != null && !string.IsNullOrWhiteSpace(req.Code) && req.Code.Length >= 7 && req.Code.Length <= 8;
+        private bool ValidateUse(UseRequest? req)
+        {
+            if (req == null)
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(req.Code))
+            {
+                return false;
+            }
+            if (req.Code.Length < 7)
+            {
+                return false;
+            }
+            if (req.Code.Length > 8)
+            {
+                return false;
+            }
+            return true;
+        }
         #endregion
     }
 }

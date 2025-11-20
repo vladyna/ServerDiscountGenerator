@@ -83,6 +83,7 @@ namespace DiscountServer.Data
                 using var conn = await OpenConnectionWithRetryAsync();
                 using var t = conn.BeginTransaction();
                 var toRetry = new List<string>();
+
                 foreach (var code in pending)
                 {
                     int stmtRetries = 0;
@@ -91,7 +92,8 @@ namespace DiscountServer.Data
                         try
                         {
                             var ok = await conn.ExecuteAsync(sql, new { c = code, l = length }, t);
-                            if (ok == 1) insertedAll.Add(code);
+                            if (ok == 1)
+                                insertedAll.Add(code);
                             break;
                         }
                         catch (SqliteException ex) when (ex.SqliteErrorCode == raw.SQLITE_BUSY && stmtRetries++ < 3)
@@ -107,24 +109,30 @@ namespace DiscountServer.Data
                         }
                     }
                 }
-                try 
-                { 
-                    t.Commit(); 
+
+                try
+                {
+                    t.Commit();
                 }
-                catch 
-                { 
+                catch
+                {
                 }
 
-                foreach (var code in insertedAll) 
+                foreach (var code in insertedAll)
+                {
                     pending.Remove(code);
+                }
 
                 var duplicates = pending.Where(c => !toRetry.Contains(c) && !insertedAll.Contains(c)).ToList();
-                foreach (var d in duplicates) 
+                foreach (var d in duplicates)
+                {
                     pending.Remove(d);
+                }
 
-                if (cycle % 5 == 0 && toRetry.Count == pending.Count) 
+                if (cycle % 5 == 0 && toRetry.Count == pending.Count)
                     await Task.Delay(25);
             }
+
             return insertedAll;
         }
         #endregion
@@ -133,9 +141,9 @@ namespace DiscountServer.Data
         public async Task<IReadOnlyList<string>> ListCodesAsync(int? length, int limit)
         {
             using var conn = await OpenConnectionWithRetryAsync();
-            var sql = length.HasValue ?
-                "SELECT Code FROM DiscountCodes WHERE Length=@l ORDER BY CreatedAt DESC LIMIT @limit" :
-                "SELECT Code FROM DiscountCodes ORDER BY CreatedAt DESC LIMIT @limit";
+            var sql = length.HasValue
+                ? "SELECT Code FROM DiscountCodes WHERE Length=@l ORDER BY CreatedAt DESC LIMIT @limit"
+                : "SELECT Code FROM DiscountCodes ORDER BY CreatedAt DESC LIMIT @limit";
             var rows = await conn.QueryAsync<string>(sql, new { l = length, limit });
             return rows.ToList();
         }
@@ -149,12 +157,14 @@ namespace DiscountServer.Data
                 "UPDATE DiscountCodes SET Used = 1, UsedAt=CURRENT_TIMESTAMP WHERE Code=@c AND Used=0",
                 new { c = code }
             );
-            if (rows == 1) return 0;
+            if (rows == 1)
+                return 0;
             var exists = await conn.QueryFirstOrDefaultAsync<int?>(
                 "SELECT Used FROM DiscountCodes WHERE Code=@c",
                 new { c = code }
             );
-            if (exists == null) return 1;
+            if (exists == null)
+                return 1;
             return 2;
         }
         #endregion

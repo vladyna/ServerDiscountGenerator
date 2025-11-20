@@ -4,6 +4,7 @@ using DiscountClient.Services;
 class Program
 {
     private static TcpClientService _tcp;
+
     static async Task Main()
     {
         Console.WriteLine("Discount Client starting...");
@@ -38,9 +39,16 @@ class Program
 
     private static void PrintCodes(List<string> codes)
     {
-        if (codes.Count == 0) { Console.WriteLine("(no codes)"); return; }
+        if (codes.Count == 0)
+        {
+            Console.WriteLine("(no codes)");
+            return;
+        }
         Console.WriteLine("Codes:");
-        for (int i = 0; i < codes.Count; i++) Console.WriteLine($"  [{i}] {codes[i]}");
+        for (int i = 0; i < codes.Count; i++)
+        {
+            Console.WriteLine($"  [{i}] {codes[i]}");
+        }
     }
 
     private static async Task InteractionLoopAsync(List<string> codes)
@@ -49,7 +57,8 @@ class Program
         {
             Console.Write("Enter code or index (list / gen / exit): ");
             var input = Console.ReadLine();
-            if (input == null || input.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+            if (input == null || input.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                break;
             if (input.Equals("list", StringComparison.OrdinalIgnoreCase))
             {
                 await _tcp.SendAsync("{\"Type\":\"List\",\"Limit\":20}");
@@ -71,12 +80,16 @@ class Program
                 continue;
             }
             var code = ResolveCode(input, codes);
-            if (code == null) continue;
+            if (code == null)
+                continue;
             await _tcp.SendAsync($"{{\"Type\":\"Use\",\"Code\":\"{code}\"}}");
             var useLine = await _tcp.ReceiveAsync();
             Console.WriteLine("Use raw: " + (useLine ?? "<null>"));
             var useResp = _tcp.Deserialize<UseResponse>(useLine);
-            if (useResp != null) Console.WriteLine("Result: " + useResp.Result);
+            if (useResp != null)
+            {
+                Console.WriteLine("Result: " + useResp.Result);
+            }
         }
     }
 
@@ -84,9 +97,12 @@ class Program
     {
         if (int.TryParse(input, out var idx))
         {
-            if (idx >= 0 && idx < codes.Count) return codes[idx];
+            if (idx >= 0 && idx < codes.Count)
+                return codes[idx];
             return null;
         }
-        return string.IsNullOrWhiteSpace(input) ? null : input;
+        if (string.IsNullOrWhiteSpace(input))
+            return null;
+        return input;
     }
 }
